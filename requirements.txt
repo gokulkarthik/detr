@@ -1,0 +1,10 @@
+matplotlib
+numpy
+Pillow
+pytorch-lightning
+pycocotools
+timm
+torch
+torchvision
+transformers
+wandbclear

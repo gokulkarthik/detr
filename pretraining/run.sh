@@ -1,13 +1,13 @@
 python3 main.py --dataset imagenet \
     --min_image_size 512 \
     --max_image_size 512 \
-    --pretext_task jigsaw-discrete \
+    --pretext_task jigsaw-continuous \
     --pretext_task_ratio 0.5 \
     --backbone_pretrained t \
     --backbone_freeze t \
     --gpus '0 1 2 3' \
     --strategy ddp \
     --precision 32 \
-    --batch_size 256 \
-    --max_epochs 20 \
+    --batch_size 128 \
+    --max_epochs 10 \
     --loss_only_for_transformed t

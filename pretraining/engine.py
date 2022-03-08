@@ -5,10 +5,12 @@ import pytorch_lightning as pl
 from pytorch_lightning.utilities import rank_zero_only
 from torchmetrics import Accuracy
 from transformers import DetrConfig, DetrForObjectDetection, DetrModel
+from torchvision import transforms
+from torchvision.utils import save_image
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
+import wandb
 
 
 
@@ -131,6 +133,10 @@ class DetrEncoderforSSL(pl.LightningModule):
         self.lr_backbone = args.lr_backbone
         self.weight_decay = args.weight_decay
 
+        self.inv_trans = transforms.Compose([transforms.Normalize(mean = [ 0., 0., 0. ], std = [ 1/0.229, 1/0.224, 1/0.225 ]),
+            transforms.Normalize(mean = [ -0.485, -0.456, -0.406 ], std = [ 1., 1., 1. ])
+            ])
+
     def forward(self, batch):
         encoder_output = self.model.forward(pixel_values=batch['patches']) # [batch_size, num_patches, hidden_dim]
         output = self.model.prediction_head(encoder_output) # [batch_size, num_patches, num_classes/num_pixel_locations]
@@ -138,7 +144,6 @@ class DetrEncoderforSSL(pl.LightningModule):
             output = output.permute(0, 2, 1) # [batch_size, num_patches, num_classes] -> [batch_size, num_classes, num_patches]
             pred = torch.argmax(output, dim=1) # [batch_size, num_patches]
         elif self.pretext_task == 'jigsaw-continuous' or self.pretext_task == 'mim-continuous':
-            output = F.sigmoid(output) # [batch_size, num_patches, patch_size*patch_size*3]
             pred = output # [batch_size, num_patches, patch_size*patch_size*3]
 
         return pred
@@ -152,20 +157,15 @@ class DetrEncoderforSSL(pl.LightningModule):
             loss = self.criterion(output, batch['target'])
             pred = torch.argmax(output, dim=1) # [batch_size, num_patches]
         elif self.pretext_task == 'jigsaw-continuous' or self.pretext_task == 'mim-continuous':
-            output = F.sigmoid(output) # [batch_size, num_patches, patch_size*patch_size*3]
             loss = self.criterion(output, batch['target']).mean(dim=2)
             pred = output
         else:
             raise ValueError()
 
-        if self.pretext_task.startswith('jigsaw'):
-            mask = (batch['patches_info'] == torch.arange(batch['patches_info'].shape[1], device=batch['patches_info'].device).long().unsqueeze(0)).long()
-        elif self.pretext_task.startswith('mim'):
-            mask = (batch['patches_info'] == 1).long()
+        if self.loss_only_for_transformed:
+            loss = (loss * batch['patches_mask']).sum() / batch['patches_mask'].sum()
         else:
-            raise ValueError()
-        
-        loss = (loss * mask).sum() / mask.sum()
+            loss = loss.mean()
 
         return loss, pred
 
@@ -180,8 +180,29 @@ class DetrEncoderforSSL(pl.LightningModule):
         self.log("val/loss", loss)
     
         if self.pretext_task.endswith('discrete'):
-            acc = self.metric(pred, batch['target'])
+            if self.loss_only_for_transformed:
+                mask = batch['patches_mask'] == 1
+                acc = self.metric(pred[mask], batch['target'][mask])
+            else:
+                acc = self.metric(pred, batch['target'])
             self.log("val/accuracy", acc)
+        elif self.pretext_task.endswith('continuous') and batch_idx == 0:
+            max_images = 8
+
+            input_imgs = self.inv_trans(batch['patches'][:max_images]) # [batch_size, C, H, W]
+            self.logger.log_image("images/input", [x for x in input_imgs])
+
+            pred_imgs = pred[:max_images] # [batch_size, num_patches, patch_size*patch_size*C]
+            _, num_patches, num_patch_pixels = pred_imgs.shape
+            patch_size = int((num_patch_pixels // 3)**0.5)
+            height = int(num_patches**0.5)
+            pred_imgs = pred_imgs.reshape(max_images, num_patches, patch_size, patch_size, 3) # [batch_size, num_patches, patch_h, patch_w, C]
+            pred_imgs = pred_imgs.reshape(max_images, height, height , patch_size, patch_size, 3) # [batch_size, h, w, patch_h, patch_w, C]
+            pred_imgs = pred_imgs.permute(0, 5, 1, 3, 2, 4) # [batch_size, C, h, patch_h, w, patch_w]
+            pred_imgs = pred_imgs.reshape(max_images, 3, patch_size*height, patch_size*height) # [batch_size, C, H, W]
+            pred_imgs = self.inv_trans(pred_imgs)
+            self.logger.log_image("images/pred", [x for x in pred_imgs])
+
 
         return loss
 
@@ -190,6 +211,7 @@ class DetrEncoderforSSL(pl.LightningModule):
             acc = self.metric.compute()
             self.log("val/accuracy_end", acc)
             self.metric.reset()
+
         return super().validation_epoch_end(outputs)
 
     def configure_optimizers(self):

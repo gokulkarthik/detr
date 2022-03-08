@@ -74,7 +74,7 @@ def main(args):
     print("Number of validation examples:", len(dataset_val))
 
     # load dataloader
-    num_cpus = min(args.batch_size, 4) #(multiprocessing.cpu_count() // len(args.gpus))-1
+    num_cpus = min(args.batch_size, 8) #(multiprocessing.cpu_count() // len(args.gpus))-1
     dataloader_train = DataLoader(dataset_train, batch_size=args.batch_size, shuffle=True, num_workers=num_cpus)
     dataloader_val = DataLoader(dataset_val, batch_size=args.batch_size, num_workers=num_cpus)
     
@@ -96,7 +96,7 @@ def main(args):
             wandb.config.update(args)
     
     weights_save_path = os.path.join(f'checkpoints/{wandb_logger.experiment.name}')
-    checkpoint_callback = ModelCheckpoint(monitor="validation/loss", dirpath=weights_save_path)
+    checkpoint_callback = ModelCheckpoint(monitor="val/loss", dirpath=weights_save_path)
     trainer = Trainer(gpus=args.gpus, max_epochs=args.max_epochs, gradient_clip_val=args.gradient_clip_val, 
         logger=wandb_logger, log_every_n_steps=args.log_every_n_steps, val_check_interval=args.val_check_interval,
         strategy=args.strategy, weights_save_path=weights_save_path, callbacks=[checkpoint_callback],

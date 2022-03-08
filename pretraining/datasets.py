@@ -73,12 +73,16 @@ class ImagenetForSSL(ImageFolder):
             pixel_values_for_dalle = map_pixels(self.transforms_for_dalle(img).unsqueeze(0))
             z_logits = self.dalle_encoder(pixel_values_for_dalle)
             target = torch.argmax(z_logits, axis=1).flatten()
+            patches_mask = (patches_info == 1).long()
         elif self.pretext_task == 'jigsaw-discrete':
             target = patches_info
+            patches_mask = (patches_info == torch.arange(patches_info.shape[0], device=patches_info.device).long()).long()
         elif self.pretext_task == 'mim-continuous':
             target = patches_for_reconstruction
+            patches_mask = (patches_info == 1).long()
         elif self.pretext_task == 'jigsaw-continuous':
             target = patches_for_reconstruction
+            patches_mask = (patches_info == torch.arange(patches_info.shape[0], device=patches_info.device).long()).long()
         else:
             raise ValueError()
 
@@ -92,7 +96,7 @@ class ImagenetForSSL(ImageFolder):
         item = {
             #'pixel_values': pixel_values[0], # [3, H, W] # original
             'patches': patches[0], # [3, H, W] # transformed
-            'patches_info': patches_info, # [num_patches] # target for jigsaw-discrete
+            'patches_mask': patches_mask, # [num_patches] # each value is from {0, 1} denoting transformed or not
             'target': target, # [num_patches] for {jigsaw-discrete, mim-discrete} with each value denoting the class; [num_patches, patch_size_h*patch_size_w*3] for {jigsaw-continuous, mim-continuous}
         }
 

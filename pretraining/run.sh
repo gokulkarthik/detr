@@ -1,7 +1,7 @@
 python3 main.py --dataset imagenet \
     --min_image_size 512 \
     --max_image_size 512 \
-    --pretext_task jigsaw-continuous \
+    --pretext_task mim-continuous \
     --pretext_task_ratio 0.5 \
     --backbone_pretrained t \
     --backbone_freeze t \

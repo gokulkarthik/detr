@@ -53,7 +53,7 @@ def get_arg_parser():
     parser.add_argument('--max_epochs', type=int, default=5)
     parser.add_argument('--loss_only_for_transformed', type=str2bool, default=True)
     parser.add_argument('--log_every_n_steps', type=int, default=50)
-    parser.add_argument('--val_check_interval', default=1.0)
+    parser.add_argument('--val_check_interval', default=0.25)
     parser.add_argument('--batch_size', type=int, default=16, help='Batch size')
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--lr_backbone', type=float, default=1e-5)
@@ -74,7 +74,7 @@ def main(args):
     print("Number of validation examples:", len(dataset_val))
 
     # load dataloader
-    num_cpus = min(args.batch_size, 8) #(multiprocessing.cpu_count() // len(args.gpus))-1
+    num_cpus = min(args.batch_size, 4) #(multiprocessing.cpu_count() // len(args.gpus))-1
     dataloader_train = DataLoader(dataset_train, batch_size=args.batch_size, shuffle=True, num_workers=num_cpus)
     dataloader_val = DataLoader(dataset_val, batch_size=args.batch_size, num_workers=num_cpus)
     
@@ -88,12 +88,7 @@ def main(args):
     # print(outputs.shape)
     # quit()
 
-    wandb_logger = WandbLogger(project="detr-pretraining")
-    if len(args.gpus) == 1:
-        wandb_logger.experiment.config.update(args)
-    else:
-        if wandb.run:
-            wandb.config.update(args)
+    wandb_logger = WandbLogger(project="detr-pretraining", config=args)
     
     weights_save_path = os.path.join(f'checkpoints/{wandb_logger.experiment.name}')
     checkpoint_callback = ModelCheckpoint(monitor="val/loss", dirpath=weights_save_path)

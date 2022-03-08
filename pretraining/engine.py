@@ -189,17 +189,17 @@ class DetrEncoderforSSL(pl.LightningModule):
         elif self.pretext_task.endswith('continuous') and batch_idx == 0:
             max_images = 8
 
-            input_imgs = self.inv_trans(batch['patches'][:max_images]) # [batch_size, C, H, W]
+            input_imgs = self.inv_trans(batch['patches'][:max_images]) # [batch_size, 3, H, W]
             self.logger.log_image("images/input", [x for x in input_imgs])
 
-            pred_imgs = pred[:max_images] # [batch_size, num_patches, patch_size*patch_size*C]
+            pred_imgs = pred[:max_images] # [batch_size, num_patches, patch_size*patch_size*3]
             _, num_patches, num_patch_pixels = pred_imgs.shape
             patch_size = int((num_patch_pixels // 3)**0.5)
             height = int(num_patches**0.5)
-            pred_imgs = pred_imgs.reshape(max_images, num_patches, patch_size, patch_size, 3) # [batch_size, num_patches, patch_h, patch_w, C]
-            pred_imgs = pred_imgs.reshape(max_images, height, height , patch_size, patch_size, 3) # [batch_size, h, w, patch_h, patch_w, C]
-            pred_imgs = pred_imgs.permute(0, 5, 1, 3, 2, 4) # [batch_size, C, h, patch_h, w, patch_w]
-            pred_imgs = pred_imgs.reshape(max_images, 3, patch_size*height, patch_size*height) # [batch_size, C, H, W]
+            pred_imgs = pred_imgs.reshape(max_images, num_patches, patch_size, patch_size, 3) # [batch_size, num_patches, patch_h, patch_w, 3]
+            pred_imgs = pred_imgs.reshape(max_images, height, height , patch_size, patch_size, 3) # [batch_size, h, w, patch_h, patch_w, 3]
+            pred_imgs = pred_imgs.permute(0, 5, 1, 3, 2, 4) # [batch_size, 3, h, patch_h, w, patch_w]
+            pred_imgs = pred_imgs.reshape(max_images, 3, patch_size*height, patch_size*height) # [batch_size, 3, H, W]
             pred_imgs = self.inv_trans(pred_imgs)
             self.logger.log_image("images/pred", [x for x in pred_imgs])
 

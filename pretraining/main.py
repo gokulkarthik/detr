@@ -3,9 +3,8 @@ import os
 
 import wandb
 
-from datasets import load_dataset, CustomCollator
+from datasets import load_dataset
 from engine import create_model
-from utils import visualize_example
 
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -31,19 +30,19 @@ def str2bool(v):
 
 def get_arg_parser():
 
-    parser = argparse.ArgumentParser(description='Traning and evaluation script for object detection using DETR')
+    parser = argparse.ArgumentParser(description="Pre-Training and evaluation script for DETR's encoder")
 
     # dataset parameters
-    parser.add_argument('--dataset', default='isaid', choices=['isaid'])
-    parser.add_argument('--min_image_size', default=800, type=int)
-    parser.add_argument('--max_image_size', default=800, type=int)
+    parser.add_argument('--dataset', default='imagenet', choices=['imagenet'])
+    parser.add_argument('--min_image_size', default=512, type=int)
+    parser.add_argument('--max_image_size', default=512, type=int)
+    parser.add_argument('--patch_size', default=32, type=int)
+    parser.add_argument('--pretext_task', type=str, default='jigsaw-discrete')
+    parser.add_argument('--pretext_task_ratio', type=float, default=0.5)
 
     # model parameters
-    parser.add_argument('--num_labels', default=15, type=int)
-    parser.add_argument('--mscoco_pretrained', type=str2bool, default=False)
-    parser.add_argument('--freeze_backbone', type=str2bool, default=False)
-    parser.add_argument('--freeze_encoder', type=str2bool, default=False)
-    parser.add_argument('--encoder_init_ckpt', type=str, default='none', help='Encoder checkpoint path')
+    parser.add_argument('--backbone_pretrained', type=str2bool, default=True)
+    parser.add_argument('--backbone_freeze', type=str2bool, default=True)
 
     # training parameters
     parser.add_argument('--gpus', default='0', help='GPU ids concatenated with space')
@@ -52,6 +51,7 @@ def get_arg_parser():
     parser.add_argument('--limit_train_batches', default=1.0)
     parser.add_argument('--limit_val_batches', default=1.0)
     parser.add_argument('--max_epochs', type=int, default=5)
+    parser.add_argument('--loss_only_for_transformed', type=str2bool, default=True)
     parser.add_argument('--log_every_n_steps', type=int, default=50)
     parser.add_argument('--val_check_interval', default=1.0)
     parser.add_argument('--batch_size', type=int, default=16, help='Batch size')
@@ -72,34 +72,31 @@ def main(args):
     dataset_val = load_dataset(args=args, split='val', feature_extractor=feature_extractor)
     print("Number of training examples:", len(dataset_train))
     print("Number of validation examples:", len(dataset_val))
-    print("Image shape:", dataset_train[0][0].shape)
-    
-    # # sanity check
-    # image_folder = os.path.join('data/iSAID_patches', 'train', 'images')
-    # random_id = np.random.randint(0, len(dataset_train))
-    # visualize_example(dataset_train, image_folder, random_id)
 
     # load dataloader
-    collate_fn = CustomCollator(feature_extractor)
-    num_cpus = min(args.batch_size, 16) #(multiprocessing.cpu_count() // len(args.gpus))-1
-    dataloader_train = DataLoader(dataset_train, collate_fn=collate_fn, batch_size=args.batch_size, shuffle=True, num_workers=num_cpus)
-    dataloader_val = DataLoader(dataset_val, collate_fn=collate_fn, batch_size=args.batch_size, num_workers=num_cpus)
+    num_cpus = min(args.batch_size, 4) #(multiprocessing.cpu_count() // len(args.gpus))-1
+    dataloader_train = DataLoader(dataset_train, batch_size=args.batch_size, shuffle=True, num_workers=num_cpus)
+    dataloader_val = DataLoader(dataset_val, batch_size=args.batch_size, num_workers=num_cpus)
     
     # create model
     seed_everything(42, workers=True)
-    model = create_model(args, dataset_val.coco, feature_extractor)
+    model = create_model(args)
 
     # # sanity check
     # batch = next(iter(dataloader_train))
-    # outputs = model(pixel_values=batch['pixel_values'], pixel_mask=batch['pixel_mask'])
-    # print(outputs.logits.shape)
+    # outputs = model.common_step(batch)
+    # print(outputs.shape)
+    # quit()
 
-    wandb_logger = WandbLogger(project="detr")
-    if wandb.run:
-        wandb.config.update(args)
-    # wandb_logger.experiment.config.update(args)
+    wandb_logger = WandbLogger(project="detr-pretraining")
+    if len(args.gpus) == 1:
+        wandb_logger.experiment.config.update(args)
+    else:
+        if wandb.run:
+            wandb.config.update(args)
+    
     weights_save_path = os.path.join(f'checkpoints/{wandb_logger.experiment.name}')
-    checkpoint_callback = ModelCheckpoint(monitor="validation/loss")
+    checkpoint_callback = ModelCheckpoint(monitor="validation/loss", dirpath=weights_save_path)
     trainer = Trainer(gpus=args.gpus, max_epochs=args.max_epochs, gradient_clip_val=args.gradient_clip_val, 
         logger=wandb_logger, log_every_n_steps=args.log_every_n_steps, val_check_interval=args.val_check_interval,
         strategy=args.strategy, weights_save_path=weights_save_path, callbacks=[checkpoint_callback],

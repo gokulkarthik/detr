@@ -1,3 +1,4 @@
+DALL-E
 matplotlib
 numpy
 Pillow
@@ -5,6 +6,7 @@ pytorch-lightning
 pycocotools
 timm
 torch
+torchmetrics
 torchvision
 transformers
-wandbclear
+wandb

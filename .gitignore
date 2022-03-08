@@ -4,3 +4,10 @@ data/
 models/
 temp/
 wandb/
+pretraining/__pycache__/
+pretraining/checkpoints/
+pretraining/models/
+pretraining/temp/
+pretraining/wandb/
+temp/*
+temp*.*

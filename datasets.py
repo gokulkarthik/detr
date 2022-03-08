@@ -1,7 +1,6 @@
 import os
 
 import torchvision
-from torch.utils.data import DataLoader
 
 
 class IsaidDetection(torchvision.datasets.CocoDetection):

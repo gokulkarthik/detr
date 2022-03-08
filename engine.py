@@ -1,6 +1,7 @@
 import copy
 from unittest import result
 import pytorch_lightning as pl
+from pytorch_lightning.utilities import rank_zero_only
 from transformers import DetrConfig, DetrForObjectDetection
 import torch
 
@@ -73,14 +74,6 @@ class Detr(pl.LightningModule):
 
         return loss
 
-    #  def validation_step_old(self, batch, batch_idx):
-    #     loss, loss_dict = self.common_step(batch, batch_idx)     
-    #     self.log("validation/loss", loss)
-    #     for k,v in loss_dict.items():
-    #       self.log("validation/" + k, v.item())
-
-    #     return loss
-
      def validation_step(self, batch, batch_idx):
       # get the inputs
       pixel_values = batch["pixel_values"].to(self.device)
@@ -91,9 +84,9 @@ class Detr(pl.LightningModule):
       outputs = self.model(pixel_values=pixel_values, pixel_mask=pixel_mask, labels=labels)
 
       loss, loss_dict = outputs.loss, outputs.loss_dict
-      self.log("validation/loss", loss)
+      self.log("validation/loss", loss, sync_dist=True)
       for k,v in loss_dict.items():
-        self.log("validation/" + k, v.item())
+        self.log("validation/" + k, v.item(), sync_dist=True)
 
       orig_target_sizes = torch.stack([target["orig_size"] for target in labels], dim=0)
       results = self.feature_extractor.post_process(outputs, orig_target_sizes) # convert outputs of model to COCO api
@@ -107,18 +100,18 @@ class Detr(pl.LightningModule):
       self.coco_evaluator.accumulate()
       self.coco_evaluator.summarize()
       results = self.coco_evaluator.coco_eval['bbox'].stats
-      self.log("result/all_ap_50_95", results[0])
-      self.log("result/all_ap_50", results[1])
-      self.log("result/all_ap_75", results[2])
-      self.log("result/small_ap_50_95", results[3])
-      self.log("result/medium_ap_50_95", results[4])
-      self.log("result/large_ap_50_95", results[5])
-      self.log("result/all_ar_50_95_1d", results[6])
-      self.log("result/all_ar_50_95_10d", results[7])
-      self.log("result/all_ar_75_95", results[8])
-      self.log("result/small_ar_50_95", results[9])
-      self.log("result/medium_ar_50_95", results[10])
-      self.log("result/large_ar_50_95", results[11])
+      self.log("result/all_ap_50_95", results[0], sync_dist=True)
+      self.log("result/all_ap_50", results[1], sync_dist=True)
+      self.log("result/all_ap_75", results[2], sync_dist=True)
+      self.log("result/small_ap_50_95", results[3], sync_dist=True)
+      self.log("result/medium_ap_50_95", results[4], sync_dist=True)
+      self.log("result/large_ap_50_95", results[5], sync_dist=True)
+      self.log("result/all_ar_50_95_1d", results[6], sync_dist=True)
+      self.log("result/all_ar_50_95_10d", results[7], sync_dist=True)
+      self.log("result/all_ar_75_95", results[8], sync_dist=True)
+      self.log("result/small_ar_50_95", results[9], sync_dist=True)
+      self.log("result/medium_ar_50_95", results[10], sync_dist=True)
+      self.log("result/large_ar_50_95", results[11], sync_dist=True)
 
       self.coco_evaluator = CocoEvaluator(self.dataset_val_coco, ['bbox'])
 

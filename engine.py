@@ -27,7 +27,17 @@ class Detr(pl.LightningModule):
         self.source_model = None
         
       if args.encoder_init_ckpt != 'none':
-        self.model.model.encoder.load_state_dict(torch.load(args.encoder_init_ckpt))
+        encoder_state_dict = torch.load(args.encoder_init_ckpt)['state_dict']
+
+        encoder_state_dict_backbone = {'.'.join(k.split('.')[2:]):v for k,v in encoder_state_dict.items() if k.split('.')[1] == 'backbone'}
+        encoder_state_dict_input_projection= {'.'.join(k.split('.')[2:]):v for k,v in encoder_state_dict.items() if k.split('.')[1] == 'input_projection'}
+        encoder_state_dict_encoder = {'.'.join(k.split('.')[2:]):v for k,v in encoder_state_dict.items() if k.split('.')[1] == 'encoder'}
+
+        self.model.model.backbone.load_state_dict(encoder_state_dict_backbone)
+        self.model.model.input_projection.load_state_dict(encoder_state_dict_input_projection)
+        self.model.model.encoder.load_state_dict(encoder_state_dict_encoder)
+        
+        print(f'Weights loaded from {args.encoder_init_ckpt} for backbone, input_projection and encoder')
 
       if args.freeze_backbone:
         for n, p in self.model.named_parameters():

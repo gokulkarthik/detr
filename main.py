@@ -94,10 +94,7 @@ def main(args):
     # outputs = model(pixel_values=batch['pixel_values'], pixel_mask=batch['pixel_mask'])
     # print(outputs.logits.shape)
 
-    wandb_logger = WandbLogger(project="detr")
-    if wandb.run:
-        wandb.config.update(args)
-    # wandb_logger.experiment.config.update(args)
+    wandb_logger = WandbLogger(project="detr", config=args)
     weights_save_path = os.path.join(f'checkpoints/{wandb_logger.experiment.name}')
     checkpoint_callback = ModelCheckpoint(monitor="validation/loss")
     trainer = Trainer(gpus=args.gpus, max_epochs=args.max_epochs, gradient_clip_val=args.gradient_clip_val, 

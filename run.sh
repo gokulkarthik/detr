@@ -1,12 +1,17 @@
 python3 main.py --dataset isaid \
     --min_image_size 512 \
     --max_image_size 512 \
-    --mscoco_pretrained f \
+    --mscoco_pretrained t \
     --freeze_backbone f \
     --freeze_encoder f \
-    --encoder_init_ckpt models/devout-disco-44-mim-continuous-ttt.ckpt \
-    --gpus '0 1 2 3' \
-    --strategy 'ddp' \
+    --encoder_init_ckpt 'none' \
+    --ssl_patch_size 32 \
+    --ssl_task 'mim-continuous' \
+    --ssl_task_ratio 0 \
+    --ssl_loss_only_for_transformed f \
+    --ssl_loss_weight 1 \
+    --gpus '2' \
+    --strategy 'none' \
     --precision 32 \
-    --batch_size 64 \
-    --max_epochs 100 
+    --batch_size 32 \
+    --max_epochs 50 

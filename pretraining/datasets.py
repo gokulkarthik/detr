@@ -7,7 +7,7 @@ from torchvision.utils import save_image
 from dall_e import map_pixels, load_model
 
 
-class ImagenetForSSL(ImageFolder):
+class ImageFolderForSSL(ImageFolder):
     """
     Note: Common placeholder label is used for all the validation set images. Don't use the imagenet label of validation set.
 
@@ -15,7 +15,7 @@ class ImagenetForSSL(ImageFolder):
     patch: https://discuss.pytorch.org/t/patch-making-does-pytorch-have-anything-to-offer/33850/11
     """
     def __init__(self, img_folder, feature_extractor, image_size, patch_size, pretext_task, pretext_task_ratio):
-        super(ImagenetForSSL, self).__init__(img_folder)
+        super(ImageFolderForSSL, self).__init__(img_folder)
         self.feature_extractor = feature_extractor
         self.image_size = image_size
         self.patch_size = patch_size
@@ -36,7 +36,7 @@ class ImagenetForSSL(ImageFolder):
             self.dalle_encoder = load_model("https://cdn.openai.com/dall-e/encoder.pkl", torch.device('cpu'))
 
     def __getitem__(self, idx):
-        img, label = super(ImagenetForSSL, self).__getitem__(idx)
+        img, label = super(ImageFolderForSSL, self).__getitem__(idx)
         
         #encoding = self.feature_extractor(images=img, return_tensors="pt") # resizing to [H, W] and normalization with Imagenet mean
         #pixel_values = encoding["pixel_values"] # [1, 3, H, W]
@@ -107,7 +107,21 @@ def load_dataset(args, split, feature_extractor):
     if args.dataset == 'imagenet':
         if split == 'val':
             split = 'val-with-subfolder'
-        dataset = ImagenetForSSL(img_folder=f'../data/imagenet/ILSVRC/Data/CLS-LOC/{split}', 
+        dataset = ImageFolderForSSL(img_folder=f'../data/imagenet/ILSVRC/Data/CLS-LOC/{split}', 
+            feature_extractor=feature_extractor, 
+            image_size=args.max_image_size, 
+            patch_size=args.patch_size, 
+            pretext_task=args.pretext_task, 
+            pretext_task_ratio=args.pretext_task_ratio)
+    elif args.dataset == 'coco':
+        dataset = ImageFolderForSSL(img_folder=f'../data/iSAID_patches/{split}', 
+            feature_extractor=feature_extractor, 
+            image_size=args.max_image_size, 
+            patch_size=args.patch_size, 
+            pretext_task=args.pretext_task, 
+            pretext_task_ratio=args.pretext_task_ratio)
+    elif args.dataset == 'isaid':
+        dataset = ImageFolderForSSL(img_folder=f'../data/iSAID_patches/{split}', 
             feature_extractor=feature_extractor, 
             image_size=args.max_image_size, 
             patch_size=args.patch_size, 

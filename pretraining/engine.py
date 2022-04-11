@@ -150,7 +150,7 @@ class DetrEncoderforSSL(pl.LightningModule):
      
     def common_step(self, batch):
         encoder_output = self.model.forward(pixel_values=batch['patches']) # [batch_size, num_patches, hidden_dim]
-        output = self.model.prediction_head(encoder_output) # [batch_size, num_patches, num_classes/num_pixel_locations]
+        output = self.model.prediction_head(encoder_output) # [batch_size, num_patches, num_classes(or)num_pixel_locations]
 
         if self.pretext_task == 'jigsaw-discrete' or self.pretext_task == 'mim-discrete':
             output = output.permute(0, 2, 1) # [batch_size, num_patches, num_classes] -> [batch_size, num_classes, num_patches]

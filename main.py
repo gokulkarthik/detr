@@ -34,7 +34,7 @@ def get_arg_parser():
     parser = argparse.ArgumentParser(description='Traning and evaluation script for object detection using DETR')
 
     # dataset parameters
-    parser.add_argument('--dataset', default='isaid', choices=['isaid'])
+    parser.add_argument('--dataset', default='isaid', choices=['isaid', 'coco'])
     parser.add_argument('--min_image_size', default=800, type=int)
     parser.add_argument('--max_image_size', default=800, type=int)
 
@@ -44,6 +44,13 @@ def get_arg_parser():
     parser.add_argument('--freeze_backbone', type=str2bool, default=False)
     parser.add_argument('--freeze_encoder', type=str2bool, default=False)
     parser.add_argument('--encoder_init_ckpt', type=str, default='none', help='Encoder checkpoint path')
+
+    # ssl task parameters
+    parser.add_argument('--ssl_patch_size', default=32, type=int)
+    parser.add_argument('--ssl_task', type=str, default='jigsaw-discrete')
+    parser.add_argument('--ssl_task_ratio', type=float, default=0.5)
+    parser.add_argument('--ssl_loss_only_for_transformed', type=str2bool, default=True)
+    parser.add_argument('--ssl_loss_weight', type=float, default=1)
 
     # training parameters
     parser.add_argument('--gpus', default='0', help='GPU ids concatenated with space')
@@ -80,7 +87,7 @@ def main(args):
     # visualize_example(dataset_train, image_folder, random_id)
 
     # load dataloader
-    collate_fn = CustomCollator(feature_extractor)
+    collate_fn = CustomCollator(feature_extractor, args)
     num_cpus = min(args.batch_size, 16) #(multiprocessing.cpu_count() // len(args.gpus))-1
     dataloader_train = DataLoader(dataset_train, collate_fn=collate_fn, batch_size=args.batch_size, shuffle=True, num_workers=num_cpus)
     dataloader_val = DataLoader(dataset_val, collate_fn=collate_fn, batch_size=args.batch_size, num_workers=num_cpus)

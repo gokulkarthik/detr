@@ -33,7 +33,7 @@ def get_arg_parser():
     parser = argparse.ArgumentParser(description="Pre-Training and evaluation script for DETR's encoder")
 
     # dataset parameters
-    parser.add_argument('--dataset', default='imagenet', choices=['imagenet'])
+    parser.add_argument('--dataset', default='imagenet', choices=['imagenet', 'isaid'])
     parser.add_argument('--min_image_size', default=512, type=int)
     parser.add_argument('--max_image_size', default=512, type=int)
     parser.add_argument('--patch_size', default=32, type=int)
